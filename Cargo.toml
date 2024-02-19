@@ -1,0 +1,10 @@
+[package]
+name = "lox-rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "lox"
+path = "src/lox.rs"
+
+[dependencies]
