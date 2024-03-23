@@ -1,8 +1,12 @@
+mod scanner;
+
 use std::env;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::process;
+
+use scanner::scanner::Scanner;
 
 fn main() {
     // Get list of arguments
@@ -22,7 +26,9 @@ fn main() {
 
 fn run_file(path: &String) {
     let source = fs::read_to_string(path).expect("File should be able to read");
-    run(&source).expect("msg");
+    if run(&source).is_err() {
+        process::exit(65);
+    };
 }
 
 fn run_prompt() {
@@ -37,11 +43,37 @@ fn run_prompt() {
         buf.clear();
 
         if run(&line).is_err() {
-            break;
+            process::exit(65);
         };
     }
 }
 
 fn run(source: &String) -> Result<String, String> {
+    if source.contains("err") {
+        return Err("Error".to_string());
+    }
+
+    let scanner = Scanner {
+        source: source.to_owned(),
+    };
+
+    match scanner.scan_tokens() {
+        Ok(tokens) => {
+            // For now, just print the tokens.
+            for token in tokens {
+                print!("{}", token)
+            }
+        }
+        Err(scan_err) => error(scan_err.line, scan_err.message)
+    };
+
     Ok("Success".to_string())
+}
+
+fn error(line: usize, message: String) {
+    report(line, &String::from(""), message);
+}
+
+fn report(line: usize, where_err: &String, message: String) {
+    println!("[line {}] Error{}: {}", line, where_err, message)
 }
