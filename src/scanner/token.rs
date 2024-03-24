@@ -57,7 +57,7 @@ pub enum TokenType {
 
 impl TokenType {
     fn to_string(&self) -> String {
-        let mut result = String::new();
+        let result: String;
         match self {
             TokenType::LeftParen => result = String::from("LeftParen"),
             TokenType::RightParen => result = String::from("RightParen"),
