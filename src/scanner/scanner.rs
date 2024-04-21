@@ -17,32 +17,32 @@ impl Scanner {
         let mut char_indices = self.source.char_indices().peekable();
 
         while let Some((pos, c)) = char_indices.next() {
-            let token: TokenType = match c {
-                '(' => TokenType::LeftParen,
-                ')' => TokenType::RightParen,
-                '{' => TokenType::LeftBrace,
-                '}' => TokenType::RightBrace,
-                ',' => TokenType::Comma,
-                '.' => TokenType::Dot,
-                '-' => TokenType::Minus,
-                '+' => TokenType::Plus,
-                ';' => TokenType::Semicolon,
-                '*' => TokenType::Star,
+            let (token, lexeme): (TokenType, String) = match c {
+                '(' => (TokenType::LeftParen, c.to_string()),
+                ')' => (TokenType::RightParen, c.to_string()),
+                '{' => (TokenType::LeftBrace, c.to_string()),
+                '}' => (TokenType::RightBrace, c.to_string()),
+                ',' => (TokenType::Comma, c.to_string()),
+                '.' => (TokenType::Dot, c.to_string()),
+                '-' => (TokenType::Minus, c.to_string()),
+                '+' => (TokenType::Plus, c.to_string()),
+                ';' => (TokenType::Semicolon, c.to_string()),
+                '*' => (TokenType::Star, c.to_string()),
                 '!' => match char_indices.next_if_eq(&(pos + 1, '=')) {
-                    Some(_) => TokenType::BangEqual,
-                    None => TokenType::Bang,
+                    Some(_) => (TokenType::BangEqual, String::from("!=")),
+                    None => (TokenType::Bang, c.to_string()),
                 },
                 '=' => match char_indices.next_if_eq(&(pos + 1, '=')) {
-                    Some(_) => TokenType::EqualEqual,
-                    None => TokenType::Equal,
+                    Some(_) => (TokenType::EqualEqual, String::from("==")),
+                    None => (TokenType::Equal, c.to_string()),
                 },
                 '<' => match char_indices.next_if_eq(&(pos + 1, '=')) {
-                    Some(_) => TokenType::LessEqual,
-                    None => TokenType::Less,
+                    Some(_) => (TokenType::LessEqual, String::from("<=")),
+                    None => (TokenType::Less, c.to_string()),
                 },
                 '>' => match char_indices.next_if_eq(&(pos + 1, '=')) {
-                    Some(_) => TokenType::GreaterEqual,
-                    None => TokenType::Greater,
+                    Some(_) => (TokenType::GreaterEqual, String::from(">=")),
+                    None => (TokenType::Greater, c.to_string()),
                 },
                 '/' => match char_indices.next_if_eq(&(pos + 1, '/')) {
                     Some(_) => {
@@ -54,15 +54,15 @@ impl Scanner {
                             })
                             .map(|(_pos, c)| c)
                             .collect();
-                        TokenType::Comment(s)
+                        (TokenType::Comment(s.clone()), format!("//{}", s))
                     }
-                    None => TokenType::Slash,
+                    None => (TokenType::Slash, c.to_string()),
                 },
                 ' ' | '\r' | '\t' | '\n' => {
                     if c == '\n' {
                         line = line + 1;
                     }
-                    TokenType::Ignore
+                    (TokenType::Ignore, c.to_string())
                 }
                 '"' => {
                     let mut last_matched: char = '\0';
@@ -76,8 +76,13 @@ impl Scanner {
                         .collect();
 
                     match last_matched {
-                        '"' => TokenType::StringLiteral(s),
-                        _ => TokenType::Invalid(String::from("Unterminated literal.")),
+                        '"' => (TokenType::StringLiteral(s.clone()), format!("\"{}\"", s)),
+                        _ => {
+                            return Err(ScanErr {
+                                line: line,
+                                message: String::from("Unterminated string."),
+                            })
+                        }
                     }
                 }
                 x if x.is_digit(10) => {
@@ -100,8 +105,8 @@ impl Scanner {
                     number_str.push_str(&integral);
                     number_str.push_str(".");
                     number_str.push_str(&fractional);
-
-                    TokenType::Number(number_str.parse().unwrap())
+                    // FIXME: This is not correct as the fractional part are '.0' by default
+                    (TokenType::Number(number_str.parse().unwrap()), number_str)
                 }
                 x if Self::is_alpha(x) => {
                     let mut identifier: String = x.to_string();
@@ -116,36 +121,34 @@ impl Scanner {
 
                     match identifier.as_str() {
                         // Reserved keywords
-                        "and" => TokenType::And,
-                        "class" => TokenType::Class,
-                        "else" => TokenType::Else,
-                        "false" => TokenType::False,
-                        "for" => TokenType::For,
-                        "fun" => TokenType::Fun,
-                        "if" => TokenType::If,
-                        "nil" => TokenType::Nil,
-                        "or" => TokenType::Or,
-                        "print" => TokenType::Print,
-                        "return" => TokenType::Return,
-                        "super" => TokenType::Super,
-                        "this" => TokenType::This,
-                        "true" => TokenType::True,
-                        "var" => TokenType::Var,
-                        "while" => TokenType::While,
+                        "and" => (TokenType::And, identifier),
+                        "class" => (TokenType::Class, identifier),
+                        "else" => (TokenType::Else, identifier),
+                        "false" => (TokenType::False, identifier),
+                        "for" => (TokenType::For, identifier),
+                        "fun" => (TokenType::Fun, identifier),
+                        "if" => (TokenType::If, identifier),
+                        "nil" => (TokenType::Nil, identifier),
+                        "or" => (TokenType::Or, identifier),
+                        "print" => (TokenType::Print, identifier),
+                        "return" => (TokenType::Return, identifier),
+                        "super" => (TokenType::Super, identifier),
+                        "this" => (TokenType::This, identifier),
+                        "true" => (TokenType::True, identifier),
+                        "var" => (TokenType::Var, identifier),
+                        "while" => (TokenType::While, identifier),
                         // Return an identifier if not reserved keyword
-                        _ => TokenType::Identifier(identifier)
+                        _ => (TokenType::Identifier(identifier.clone()), identifier),
                     }
                 }
-                _ => TokenType::Invalid(format!("Unexpected token: {}", c)),
+                _ => {
+                    return Err(ScanErr {
+                        line: line,
+                        message: format!("Unexpected token: {}", c),
+                    })
+                }
             };
 
-            if let TokenType::Invalid(err_msg) = token {
-                // Invalid token here
-                return Err(ScanErr {
-                    line: line,
-                    message: err_msg
-                });
-            }
             if let TokenType::Ignore = token {
                 continue;
             }
@@ -158,7 +161,7 @@ impl Scanner {
 
             tokens.push(Token {
                 token_type: token,
-                lexeme: None,
+                lexeme: Some(lexeme),
                 line: line,
             });
 

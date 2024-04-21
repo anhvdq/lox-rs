@@ -1,5 +1,7 @@
-mod scanner;
 mod ast;
+mod parser;
+mod scanner;
+mod interpreter;
 
 use std::env;
 use std::fs;
@@ -7,6 +9,9 @@ use std::io;
 use std::io::Write;
 use std::process;
 
+use ast::tree::AstPrinter;
+use ast::tree::AstVisitor;
+use parser::Parser;
 use scanner::scanner::Scanner;
 
 fn main() {
@@ -60,12 +65,14 @@ fn run(source: &String) -> Result<String, String> {
 
     match scanner.scan_tokens() {
         Ok(tokens) => {
-            // For now, just print the tokens.
-            for token in tokens {
-                print!("{}", token)
-            }
+            let mut parser: Parser = Parser::new(tokens);
+            if let Ok(expr) = parser.parse() {
+                let mut visitor = AstPrinter;
+                let val = visitor.process(&expr, None);
+                print!("\n{}\n", val)
+            };
         }
-        Err(scan_err) => error(scan_err.line, scan_err.message)
+        Err(scan_err) => error(scan_err.line, scan_err.message),
     };
 
     Ok("Success".to_string())

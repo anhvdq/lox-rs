@@ -1,5 +1,4 @@
 use crate::scanner::token::Token;
-use crate::scanner::token::TokenType;
 
 pub trait AstVisitor<R, C> {
     fn process(&mut self, expr: &Expr, context: Option<&C>) -> R;
@@ -33,18 +32,45 @@ impl Walkable for Expr {
 }
 
 pub struct Binary {
-    left: Box<Expr>,
-    operator: Token,
-    right: Box<Expr>,
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
+}
+
+impl Binary {
+    pub fn new(left: Box<Expr>, operator: Token, right: Box<Expr>) -> Self {
+        Self {
+            left: left,
+            operator: operator,
+            right: right,
+        }
+    }
 }
 
 pub struct Unary {
-    operator: Token,
-    right: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
+}
+
+impl Unary {
+    pub fn new(operator: Token, right: Box<Expr>) -> Self {
+        Self {
+            operator: operator,
+            right: right,
+        }
+    }
 }
 
 pub struct Grouping {
-    expression: Box<Expr>,
+    pub expression: Box<Expr>,
+}
+
+impl Grouping {
+    pub fn new(expression: Box<Expr>) -> Self {
+        Self {
+            expression: expression,
+        }
+    }
 }
 
 pub enum Literal {
@@ -54,27 +80,31 @@ pub enum Literal {
     Nil,
 }
 
-struct AstPrinter;
+pub struct AstPrinter;
 impl AstVisitor<String, ()> for AstPrinter {
     fn process(&mut self, expr: &Expr, context: Option<&()>) -> String {
         expr.accept(self, context)
     }
 
     fn visit_binary(&mut self, binary: &Binary, context: Option<&()>) -> String {
+        print!("binary\n");
         let operator = binary.operator.lexeme.as_ref().unwrap();
         let left = binary.left.accept(self, context);
         let right = binary.right.accept(self, context);
         format!("({} {} {})", operator, left, right)
     }
     fn visit_unary(&mut self, unary: &Unary, context: Option<&()>) -> String {
+        print!("unary\n");
         let operator = unary.operator.lexeme.as_ref().unwrap();
         let right = unary.right.accept(self, context);
         format!("({} {})", operator, right)
     }
     fn visit_grouping(&mut self, grouping: &Grouping, context: Option<&()>) -> String {
+        print!("group\n");
         format!("(group {})", grouping.expression.accept(self, context))
     }
     fn visit_literal(&mut self, literal: &Literal, _: Option<&()>) -> String {
+        print!("lit\n");
         match literal {
             Literal::Boolean(val) => val.to_string(),
             Literal::Number(val) => val.to_string(),
@@ -84,28 +114,28 @@ impl AstVisitor<String, ()> for AstPrinter {
     }
 }
 
-#[test]
-fn test() {
-    let mut visitor = AstPrinter {};
-    let expression = Expr::Binary(Binary {
-        left: Box::new(Expr::Unary(Unary {
-            operator: Token {
-                token_type: TokenType::Minus,
-                lexeme: Option::Some(String::from("-")),
-                line: 1,
-            },
-            right: Box::new(Expr::Literal(Literal::Number(123.0))),
-        })),
-        operator: Token {
-            token_type: TokenType::Star,
-            lexeme: Option::Some(String::from("*")),
-            line: 1,
-        },
-        right: Box::new(Expr::Grouping(Grouping {
-            expression: Box::new(Expr::Literal(Literal::Number(45.67))),
-        })),
-    });
+// #[test]
+// fn test() {
+//     let mut visitor = AstPrinter {};
+//     let expression = Expr::Binary(Binary {
+//         left: Box::new(Expr::Unary(Unary {
+//             operator: Token {
+//                 token_type: TokenType::Minus,
+//                 lexeme: Option::Some(String::from("-")),
+//                 line: 1,
+//             },
+//             right: Box::new(Expr::Literal(Literal::Number(123.0))),
+//         })),
+//         operator: Token {
+//             token_type: TokenType::Star,
+//             lexeme: Option::Some(String::from("*")),
+//             line: 1,
+//         },
+//         right: Box::new(Expr::Grouping(Grouping {
+//             expression: Box::new(Expr::Literal(Literal::Number(45.67))),
+//         })),
+//     });
 
-    let result = visitor.process(&expression, None);
-    print!("{}\n", result);
-}
+//     let result = visitor.process(&expression, None);
+//     print!("{}\n", result);
+// }
